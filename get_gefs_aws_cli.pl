@@ -1,4 +1,5 @@
 #!/usr/bin/perl -w
+# notice: Amazon S3 doesn't support retrieving multiple ranges of data per GET request.
 # w. ebisuzaki CPC/NCEP/NWS/NOAA 10/2006
 #
 # simple script to download gfs files
@@ -34,6 +35,7 @@
 # v2.1.2 5/2017 quote left brace, required by new versions of perl
 # v2.1.3 12/2018 conversion to https
 # v2.1.4 12/2018 changed URLs to https
+# 09/2024 modified by Lizhi Jiang
 #
 #------------ user customization section -----------------------------------------
 
