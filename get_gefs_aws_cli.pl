@@ -1,16 +1,16 @@
 #!/usr/bin/perl -w
-# notice: Amazon S3 doesn't support retrieving multiple ranges of data per GET request.
+# notice! aws_cli not support multi ran download.
 # w. ebisuzaki CPC/NCEP/NWS/NOAA 10/2006
 #
 # simple script to download gfs files
-# inspired by Dan Swank's get-narr.pl script
+# inspired by Dan Swank's t-narr.pl script
 # this script uses the tecnique described in
 #     https://www.cpc.ncep.noaa.gov/products/wesley/fast_downloading_grib.html
 #
 # arguments:  action YYYYMMDDHH HR0 HR1 DHR VAR_LIST LEV_LIST DIRECTORY
 #
 #   action = idx  (display inventory of 1st file)
-#            data (get data)
+#            data (t data)
 #
 #   HR0, HR1, DHR: forecast hour parameters
 #            do f_hour = HR0, HR1, DHR                                  (fortran)
@@ -24,18 +24,18 @@
 #   DIRECTORY:  name of the directory in which to place the files
 #
 # v1.0  10/2006  who is going to find the first bug?
-# v1.0a 10/2006  better help page
-# v2.0beta  10/2006  no need for egrep, get_inv.pl and get_grib.pl
-# v2.0beta2  10/2006  no need for egrep, get_inv.pl and get_grib.pl
-# v2.0beta3  10/2006  update messages, ignore case on matches
+# v1.0a 10/2006  better help pa
+# v2.0beta  10/2006  no need for egrep, t_inv.pl and get_grib.pl
+# v2.0beta2  10/2006  no need for egrep, t_inv.pl and get_grib.pl
+# v2.0beta3  10/2006  update messas, ignore case on matches
 # v2.0 1/2009 J.M. Berg: no need for OUTDIR for inventory
-# v2.0.1 1/2011 change URL to http://nomads.ncep.noaa.gov
+# v2.0.1 1/2011 chan URL to http://nomads.ncep.noaa.gov
 # v2.0.2 10/2012 set check for bad year to > 2030
-# v2.1 1/2015 NCO change gfs naming conventions: added $FHR3, updated URLs
+# v2.1 1/2015 NCO chan gfs naming conventions: added $FHR3, updated URLs
 # v2.1.2 5/2017 quote left brace, required by new versions of perl
 # v2.1.3 12/2018 conversion to https
-# v2.1.4 12/2018 changed URLs to https
-# 09/2024 modified by Lizhi Jiang
+# v2.1.4 12/2018 chand URLs to https
+# 09/2024  modified by Lizhi Jiang
 #
 #------------ user customization section -----------------------------------------
 
@@ -78,10 +78,10 @@ $insecure='';
 #------------- guts of script ---------------------------------------------------
 $version="2.1.8";
 if ($#ARGV != 7) {
-  print "get_gfs.pl $version get GFS forecasts from nomads.ncep.noaa.gov\n";
-  print "\nget_gfs.pl action YYYYMMDDHH HR0 HR1 DHR VAR_LIST LEV_LIST DIRECTORY\n\n";
+  print "t_gfs_aws_cli.pl $version get GFS forecasts from nomads.ncep.noaa.gov\n";
+  print "\nt_gfs.pl action YYYYMMDDHH HR0 HR1 DHR VAR_LIST LEV_LIST DIRECTORY\n\n";
   print "   action = idx  (display inventory of first data file)\n";
-  print "            data (get data)\n";
+  print "            data (t data)\n";
   print "   YYYYMMDDHH: starting time of the forecast in UTC (Coordinated Universal Time)\n";
   print "   HR0, HR1, DHR: forecast hour parameters\n";
   print "      fortran: do f_hour = HR0, HR1, DHR\n";
@@ -94,20 +94,20 @@ if ($#ARGV != 7) {
   print "   DIRECTORY:  name of the directory in which to place the output files\n";
   print "   To see the available variables and levels in a particular file, display the inventory\n";
   print "\n                   EXAMPLES\n\n Displaying an inventory\n\n";
-  print "       get_gfs.pl idx 2018123100 0 0 0 all all .\n\n";
+  print "       t_gfs.pl idx 2018123100 0 0 0 all all .\n\n";
   print " Downloading 500 hPa Height and Temp 0/3/6 hours forecasts to current directory\n\n";
-  print "       get_gfs.pl data 2018123100 0 6 3 HGT:TMP 500_mb .\n\n";
+  print "       t_gfs.pl data 2018123100 0 6 3 HGT:TMP 500_mb .\n\n";
   print " Downloading PRATE 12/18 hours forecasts to current directory\n\n";
-  print "       get_gfs.pl data 2018123000 12 18 6 PRATE all .\n\n";
+  print "       t_gfs.pl data 2018123000 12 18 6 PRATE all .\n\n";
   print " Of course the date code will have to be current.\n";
   print "\nDec 30, 2018: This script has the current https URLs for the 1.0, 0.5 and 0.25\n";
-  print " degree GFS forecasts. To change, to a different resolution GFS forecasts,\n";
+  print " degree GFS forecasts. To chan, to a different resolution GFS forecasts,\n";
   print "select the desired \$URL definition.\n";
   print "  This program can be used for other forecasts on nomads.ncep.noaa.gov by\n";
   print "changing the URL in this perl script. This program uses the partial\n";
   print "downloading techinque.\n";
   print "   https://www.cpc.ncep.noaa.gov/products/wesley/fast_downloading_grib.html\n";
-  print "\nTo get user-defined regional subsets of the GFS forecast from the\n";
+  print "\nTo t user-defined regional subsets of the GFS forecast from the\n";
   print "nomads.ncep.noaa.gov server, use the grib_filter facility. \n"; 
   print "This is more useful for high-resolution grids.\n";
   exit(8);
@@ -126,7 +126,6 @@ $YYYY = substr($time,0,4);
 $MM = substr($time,4,2);
 $DD = substr($time,6,2);
 $HH = substr($time,8,2);
-$ENM = "c00" ; #ensemble members (c00, p01-p30)
 
 
 # check values
@@ -212,8 +211,8 @@ while ($fhr <= $hr1) {
    #
 
    if ($windows eq 'yes') {
-      print "$aws s3api get-object --bucket noaa-gefs-pds --no-sign-request --key gefs.$YYYY$MM$DD/$HH/atmos/pgrb2ap5/ge$ENM.t$HH\z.pgrb2a.0p50.f$fhr3$idx  $OUTDIR/$file.tmp" ;
-      $err = system("$aws s3api get-object --bucket noaa-gefs-pds --no-sign-request --key gefs.$YYYY$MM$DD/$HH/atmos/pgrb2ap5/ge$ENM.t$HH\z.pgrb2a.0p50.f$fhr3$idx  $OUTDIR/$file.tmp");
+      print "$aws s3api get-object --bucket noaa-gfs-bdp-pds --no-sign-request --key gfs.$YYYY$MM$DD/$HH/atmos/gfs.t${HH}z.pgrb2.0p25.f$fhr3$idx  $OUTDIR/$file.tmp" ;
+      $err = system("$aws s3api get-object --bucket noaa-gfs-bdp-pds --no-sign-request --key gfs.$YYYY$MM$DD/$HH/atmos/gfs.t${HH}z.pgrb2.0p25.f$fhr3$idx  $OUTDIR/$file.tmp");
       # $err = system("$curl $insecure -f -s $url$idx -o $OUTDIR/$file.tmp");
       $err = $err >> 8;
       if ($err) {
@@ -262,16 +261,16 @@ while ($fhr <= $hr1) {
     
    if ($action eq 'idx') {
       for ($i = 0; $i < $n; $i++) {
-         print "$line[$i]:range=$start[$i]-$last[$i]\n";
+         print "$line[$i]:ran=$start[$i]-$last[$i]\n";
       }
       exit(0);
    }
 
    #
-   # make the range field for Curl
+   # make the ran field for Curl
    #
 
-   $range = '';
+   $ran = '';
    $lastfrom = '';
    $lastto = '-100';
    for ($i = 0; $i < $n; $i++) {
@@ -285,8 +284,8 @@ while ($fhr <= $hr1) {
          }
          elsif ($lastto ne $to) {
             if ($lastfrom ne '') {
-               if ($range eq '') { $range = "$lastfrom-$lastto"; }
-               else { $range = "$range,$lastfrom-$lastto"; }
+               if ($ran eq '') { $range = "$lastfrom-$lastto"; }
+               else { $ran = "$range,$lastfrom-$lastto"; }
             }
             $lastfrom = $from;
             $lastto = $to;
@@ -294,17 +293,17 @@ while ($fhr <= $hr1) {
       }
    }
    if ($lastfrom ne '') {
-      if ($range eq '') { $range="$lastfrom-$lastto"; }
-      else { $range="$range,$lastfrom-$lastto"; }
+      if ($ran eq '') { $range="$lastfrom-$lastto"; }
+      else { $ran="$range,$lastfrom-$lastto"; }
    }
 
-   if ($range ne '') {
-      print "$aws s3api get-object --bucket noaa-gefs-pds --no-sign-request --range bytes=\"$range\"  --key gefs.$YYYY$MM$DD/$HH/atmos/pgrb2ap5/ge$ENM.t$HH\z.pgrb2a.0p50.f$fhr3$grb $OUTDIR/$file.tmp";
-      $err = system("$aws s3api get-object --bucket noaa-gefs-pds --no-sign-request --range bytes=\"$range\"  --key gefs.$YYYY$MM$DD/$HH/atmos/pgrb2ap5/ge$ENM.t$HH\z.pgrb2a.0p50.f$fhr3$grb $OUTDIR/$file.tmp");
-      #$curl $insecure -f -v -s -r \"$range\" $url$grb -o $OUTDIR/$file.tmp");
+   if ($ran ne '') {
+      print "$aws s3api get-object --bucket noaa-gfs-bdp-pds --no-sign-request --range bytes=\"$range\"  --key gfs.$YYYY$MM$DD/$HH/atmos/gfs.t${HH}z.pgrb2.0p25.f$fhr3$grb $OUTDIR/$file.tmp";
+      $err = system("$aws s3api get-object --bucket noaa-gfs-bdp-pds --no-sign-request --range bytes=\"$range\"  --key gfs.$YYYY$MM$DD/$HH/atmos/gfs.t${HH}z.pgrb2.0p25.f$fhr3$grb $OUTDIR/$file.tmp");
+      #$curl $insecure -f -v -s -r \"$ran\" $url$grb -o $OUTDIR/$file.tmp");
       $err = $err >> 8;
       if ($err != 0) {
-         print STDERR "error in getting file $err $url$grb\n";
+         print STDERR "error in tting file $err $url$grb\n";
          sleep(20);
          exit $err;
       }
