@@ -1,4 +1,5 @@
 #!/usr/bin/perl -w
+# revised by Lizhi Jiang 10/2024
 # w. ebisuzaki CPC/NCEP/NWS/NOAA 10/2006
 #
 # simple script to download gfs files
@@ -8,7 +9,7 @@
 #
 # arguments:  action YYYYMMDDHH HR0 HR1 DHR VAR_LIST LEV_LIST DIRECTORY
 #
-#   action = idx  (display inventory of 1st file)
+#   action = inv  (display inventory of 1st file)
 #            data (get data)
 #
 #   HR0, HR1, DHR: forecast hour parameters
@@ -34,34 +35,34 @@
 # v2.1.2 5/2017 quote left brace, required by new versions of perl
 # v2.1.3 12/2018 conversion to https
 # v2.1.4 12/2018 changed URLs to https
-# 09/2024 modified by Lizhi Jiang
+# v2.1.5 6/2019 changed URLs, help page
+# v2.1.6 4/2021 changed URLs
+#
 #------------ user customization section -----------------------------------------
 
 # location of curl
-$curl="/usr/bin/curl";
-$idx='.idx';
+$curl="curl";
+$inv='.idx';
 $grb='';
 
-# the URLs of the inventory and grib must be defined by $URL$idx and $URL$grb
+# the URLs of the inventory and grib must be defined by $URL$inv and $URL$grb
 # symbolic variables supported YYYY MM DD HH FHR (forecast hour), FHR3 (3 digit forecast hour)
 #
 # grib2 files from operational nomads server
 #
 # 1x1 degree GFS
-#$URL='https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.$YYYY$MM$DD/$HH/gfs.t${HH}z.pgrb2.1p00.f${FHR3}';
+# $URL='https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.$YYYY$MM$DD/$HH/atmos/gfs.t${HH}z.pgrb2.1p00.f${FHR3}';
 # 0.5x0.5 degree GFS
-#$URL='https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.$YYYY$MM$DD/$HH/gfs.t${HH}z.pgrb2.0p50.f${FHR3}';
+# $URL='https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.$YYYY$MM$DD/$HH/atmos/gfs.t${HH}z.pgrb2.0p50.f${FHR3}';
 # 0.25 x 0.25 degree GFS
-#$URL='https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.$YYYY$MM$DD/$HH/gfs.t${HH}z.pgrb2.0p25.f${FHR3}';
-#$URL='https://noaa-gefs-pds.s3.amazonaws.com/gefs.$YYYY$MM$DD/$HH/atmos/pgrb2bp5/gec00.t${HH}z.pgrb2b.0p50.f${FHR3}';
-$URL='https://noaa-gefs-pds.s3.amazonaws.com/gefs.$YYYY$MM$DD/$HH/atmos/pgrb2sp25/ge$word.t${HH}z.pgrb2s.0p25.f${FHR3}';
 
+$URL='https://noaa-gefs-pds.s3.amazonaws.com/gefs.$YYYY$MM$DD/$HH/atmos/${pgrbpath}/ge${pertubationmember}.t${HH}z.${pgrbtype}.${resolution}.f${FHR3}';
 #  if you want a 1/4 degree grid .. you should learn to use grib-filter
 #  grib-filter will give regional subset and save downloading time
 #  see  www.cpc.ncep.noaa.gov/products/wesley/scripting_grib_filter.html
 #
 # grib2 files from www.ftp.ncep.noaa.gov (not operational)
-# $URL='https://www.ftp.ncep.noaa.gov/data/nccf/com/gfs/prod/gfs.$YYYY$MM$DD$HH/gfs.t${HH}z.pgrb2.1p00.f${FHR3}';
+# $URL='https://www.ftp.ncep.noaa.gov/data/nccf/com/gfs/prod/gfs.$YYYY$MM$DD/$HH/gfs.t${HH}z.pgrb2.1p00.f${FHR3}';
 #
 
 # if insecure web server, $insecure='k';
@@ -70,15 +71,15 @@ $insecure='';
 
 # the windows dos prompt often has problems with pipes, slower code code to avoid pipes
 # $windows='no';
- $windows='yes';
+$windows='yes';
 
 
 #------------- guts of script ---------------------------------------------------
-$version="2.1.8";
-if ($#ARGV != 7) {
+$version="2.1.6";
+if ($#ARGV != 9) {
   print "get_gfs.pl $version get GFS forecasts from nomads.ncep.noaa.gov\n";
   print "\nget_gfs.pl action YYYYMMDDHH HR0 HR1 DHR VAR_LIST LEV_LIST DIRECTORY\n\n";
-  print "   action = idx  (display inventory of first data file)\n";
+  print "   action = inv  (display inventory of first data file)\n";
   print "            data (get data)\n";
   print "   YYYYMMDDHH: starting time of the forecast in UTC (Coordinated Universal Time)\n";
   print "   HR0, HR1, DHR: forecast hour parameters\n";
@@ -89,14 +90,17 @@ if ($#ARGV != 7) {
   print "      ex.  HGT:TMP:OZONE, all\n";
   print "   LEV_LIST:   list of levels separated by colons, blanks replaced by underscore or all\n";
   print "      ex.  500_mb:sfc, all\n";
+  print "      Note: APCP has both 0-M hour acc fcst and N-N hour acc fcst in the GFS,\n";
+  print "         to get the 0-N hour acc fcst, set LEV_LIST to '0-'\n";
   print "   DIRECTORY:  name of the directory in which to place the output files\n";
   print "   To see the available variables and levels in a particular file, display the inventory\n";
   print "\n                   EXAMPLES\n\n Displaying an inventory\n\n";
-  print "       get_gfs.pl idx 2018123100 0 0 0 all all .\n\n";
+  print "       get_gfs.pl inv 2018123100 0 0 0 all all .\n\n";
   print " Downloading 500 hPa Height and Temp 0/3/6 hours forecasts to current directory\n\n";
   print "       get_gfs.pl data 2018123100 0 6 3 HGT:TMP 500_mb .\n\n";
-  print " Downloading PRATE 12/18 hours forecasts to current directory\n\n";
-  print "       get_gfs.pl data 2018123000 12 18 6 PRATE all .\n\n";
+  print " Downloading APCP 6/18 hours forecasts to current directory\n\n";
+  print "       get_gfs.pl data 2018123000 6 18 6 APCP all .   *downloads 2 types of APCP\n";
+  print "       get_gfs.pl data 2018123000 6 18 6 APCP 0- .    *downloads 0-N hour APCP (1 or 2 time)\n\n";
   print " Of course the date code will have to be current.\n";
   print "\nDec 30, 2018: This script has the current https URLs for the 1.0, 0.5 and 0.25\n";
   print " degree GFS forecasts. To change, to a different resolution GFS forecasts,\n";
@@ -119,7 +123,8 @@ $dhr=$ARGV[4];
 $VARS=$ARGV[5];
 $LEVS=$ARGV[6];
 $OUTDIR = $ARGV[7];
-
+$pertubationmember = $ARGV[8];
+$pgrbtype = $ARGV[9];
 
 
 $YYYY = substr($time,0,4);
@@ -127,20 +132,10 @@ $MM = substr($time,4,2);
 $DD = substr($time,6,2);
 $HH = substr($time,8,2);
 
-$output = '';
-my $string = "c00,p01,p02,p03,p04,p05,p06,p07,p08,p09,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19,p20,p21,p22,p23,p24,p25,p26,p27,p28,p29,p30";
-# Split the string by comma
-my @words = split /,/, $string;
-
-
-
-# Loop through each word and print it
-foreach my $word (@words) {
-    
 # check values
 
-if ($action ne 'data' && $action ne 'idx') {
-   print "action must be idx or data, not $action\n";
+if ($action ne 'data' && $action ne 'inv') {
+   print "action must be inv or data, not $action\n";
    exit(8);
 }
 
@@ -163,6 +158,7 @@ if ($HH < 0 || $HH > 23) {
 if ($hr0 == $hr1) {
    $dhr = 3;
 }
+
 if ($dhr != 3 && $dhr != 6 && $dhr != 12 && $dhr != 24) {
    print "dhr must be 3, 6, 12 or 24, not $dhr\n";
    exit(8);
@@ -176,7 +172,7 @@ if ($dhr <= 0) {
    print "dhr needs to be > 0\n";
    exit(8);
 }
-if (! -d $OUTDIR && $action ne 'idx') {
+if (! -d $OUTDIR && $action ne 'inv') {
    print "Directory $OUTDIR does not exist\n";
    exit(8);
 }
@@ -189,6 +185,27 @@ $LEVS =~ tr/:_/| /;
 if( $LEVS =~ m/ALL/ig ) { $LEVS = "."; }
 else { $LEVS = ":($LEVS)" ; }
 
+
+$pgrbpath = "";
+$resolution="";
+
+if ( $pgrbtype eq 'pgrb2a'){
+   $pgrbpath='pgrb2ap5' ;
+   $resolution='0p50' ;
+}
+
+if ( $pgrbtype eq 'pgrb2b'){
+   $pgrbpath='pgrb2bp5' ;
+   $resolution='0p50' ;
+}
+
+if ( $pgrbtype eq 'pgrb2s'){
+   $pgrbpath='pgrb2sp25' ;
+   $resolution='0p25' ;
+}
+
+#pertubationmember="c00,p01,p02,p03,p04,p05,p06,p07,p08,p09,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19,p20,p21,p22,p23,p24,p25,p26,p27,p28,p29,p30";
+
 $URL =~ s/\$YYYY/$YYYY/g;
 $URL =~ s/\$\{YYYY\}/$YYYY/g;
 $URL =~ s/\$MM/$MM/g;
@@ -197,7 +214,15 @@ $URL =~ s/\$DD/$DD/g;
 $URL =~ s/\$\{DD\}/$DD/g;
 $URL =~ s/\$HH/$HH/g;
 $URL =~ s/\$\{HH\}/$HH/g;
-$URL =~ s/\$\{HH\}/$HH/g;
+
+#$URL='https://noaa-gefs-pds.s3.amazonaws.com/gefs.$YYYY$MM$DD/$HH/atmos/${pgrbpath}/ge${pertubationmember}.t${HH}z.${pgrbtype}.${resolution}.f${FHR3}';
+
+$URL =~ s/\$\{pgrbpath\}/$pgrbpath/g;
+$URL =~ s/\$\{pgrbtype\}/$pgrbtype/g;
+$URL =~ s/\$\{pertubationmember\}/$pertubationmember/g;
+$URL =~ s/\$\{resolution\}/$resolution/g;
+
+$output = '';
 
 $fhr=$hr0;
 while ($fhr <= $hr1) {
@@ -209,7 +234,6 @@ while ($fhr <= $hr1) {
    $url =~ s/\$\{FHR3\}/$fhr3/g;
    $url =~ s/\$FHR/$fhr/g;
    $url =~ s/\$\{FHR\}/$fhr/g;
-   $url =~ s/\$word/$word/g;
    $file = $url;
    $file =~ s/^.*\///;
 
@@ -219,18 +243,17 @@ while ($fhr <= $hr1) {
    #
 
    if ($windows eq 'yes') {
-      $err = system("$curl $insecure -f -s $url$idx -o $OUTDIR/$file.tmp");
-      $err = system("$curl $insecure -f -v -s -r \"$range\" $url$grb -o $OUTDIR/$file.tmp");
+      $err = system("$curl $insecure -f -s $url$inv -o $OUTDIR/$file.tmp");
       $err = $err >> 8;
       if ($err) {
-         print STDERR "error code=$err,  problem reading $url$idx\n";
+         print STDERR "error code=$err,  problem reading $url$inv\n";
          sleep(10);
          exit(8);
       }
       open (In, "$OUTDIR/$file.tmp");
    }
    else {
-      open (In, "$curl $insecure -f -s $url$idx |");
+      open (In, "$curl $insecure -f -s $url$inv |");
    }
 
    $n=0;
@@ -244,7 +267,7 @@ while ($fhr <= $hr1) {
    }
    close(In);
    if ($n == 0) {
-       print STDERR "Problem reading file $url$idx\n";
+       print STDERR "Problem reading file $url$inv\n";
        sleep(10);
        exit(8);
    }
@@ -252,6 +275,7 @@ while ($fhr <= $hr1) {
    #
    # find end of record: $last[]
    #
+
    $lastnum = $start[$n-1];
    for ($i = 0; $i < $n; $i++) {
       $num = $start[$i];
@@ -264,8 +288,8 @@ while ($fhr <= $hr1) {
          $last[$i] = '';
       }
    }
-   
-   if ($action eq 'idx') {
+    
+   if ($action eq 'inv') {
       for ($i = 0; $i < $n; $i++) {
          print "$line[$i]:range=$start[$i]-$last[$i]\n";
       }
@@ -302,6 +326,7 @@ while ($fhr <= $hr1) {
       if ($range eq '') { $range="$lastfrom-$lastto"; }
       else { $range="$range,$lastfrom-$lastto"; }
    }
+
    if ($range ne '') {
       $err = system("$curl $insecure -f -v -s -r \"$range\" $url$grb -o $OUTDIR/$file.tmp");
       $err = $err >> 8;
@@ -317,7 +342,6 @@ while ($fhr <= $hr1) {
       print "no matches (no download) for $file\n";
    }
    $fhr += $dhr;
-}
 }
 print "\n\nfinished download\n\n$output\n";
 exit(0);
