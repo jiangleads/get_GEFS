@@ -56,8 +56,9 @@ $grb='';
 #$URL='https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.$YYYY$MM$DD/$HH/gfs.t${HH}z.pgrb2.0p50.f${FHR3}';
 # 0.25 x 0.25 degree GFS
 #$URL='https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.$YYYY$MM$DD/$HH/gfs.t${HH}z.pgrb2.0p25.f${FHR3}';
-$URL='https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.$YYYY$MM$DD/$HH/atmos/gfs.t${HH}z.pgrb2.0p25.f${FHR3}';
-$URL='https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.$YYYY$MM$DD/$HH/atmos/gefs.t${HH}z.pgrb2a.0p25.f${FHR3}';
+#$URL='https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.$YYYY$MM$DD/$HH/atmos/gfs.t${HH}z.pgrb2.0p25.f${FHR3}';
+#$URL='https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.$YYYY$MM$DD/$HH/atmos/gefs.t${HH}z.pgrb2a.0p25.f${FHR3}';
+$URL='https://noaa-gefs-pds.s3.amazonaws.com/gefs.$YYYY$MM$DD/$HH/atmos/${pgrbpath}/ge${pertubationmember}.t${HH}z.${pgrbtype}.${resolution}.f${FHR3}'; 
 
 #  if you want a 1/4 degree grid .. you should learn to use grib-filter
 #  grib-filter will give regional subset and save downloading time
@@ -78,7 +79,7 @@ $insecure='';
 
 #------------- guts of script ---------------------------------------------------
 $version="2.1.8";
-if ($#ARGV != 7) {
+if ($#ARGV != 9) {
   print "get_gefs_aws_cli.pl $version get GFS forecasts from nomads.ncep.noaa.gov\n";
   print "\nget_gfs.pl action YYYYMMDDHH HR0 HR1 DHR VAR_LIST LEV_LIST DIRECTORY\n\n";
   print "   action = idx  (display inventory of first data file)\n";
@@ -122,12 +123,14 @@ $dhr=$ARGV[4];
 $VARS=$ARGV[5];
 $LEVS=$ARGV[6];
 $OUTDIR = $ARGV[7];
+$pertubationmember = $ARGV[8];
+$pgrbtype = $ARGV[9];
 
 $YYYY = substr($time,0,4);
 $MM = substr($time,4,2);
 $DD = substr($time,6,2);
 $HH = substr($time,8,2);
-$ENM = "c00" ; #ensemble members (c00, p01-p30)
+$output = '';
 
 
 # check values
@@ -183,6 +186,28 @@ $LEVS =~ tr/:_/| /;
 if( $LEVS =~ m/ALL/ig ) { $LEVS = "."; }
 else { $LEVS = ":($LEVS)" ; }
 
+
+$pgrbpath = "";
+$resolution="";
+
+if ( $pgrbtype eq 'pgrb2a'){
+   $pgrbpath='pgrb2ap5' ;
+   $resolution='0p50' ;
+}
+
+if ( $pgrbtype eq 'pgrb2b'){
+   $pgrbpath='pgrb2bp5' ;
+   $resolution='0p50' ;
+}
+
+if ( $pgrbtype eq 'pgrb2s'){
+   $pgrbpath='pgrb2sp25' ;
+   $resolution='0p25' ;
+}
+
+#pertubationmember="c00,p01,p02,p03,p04,p05,p06,p07,p08,p09,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19,p20,p21,p22,p23,p24,p25,p26,p27,p28,p29,p30";
+#
+
 $URL =~ s/\$YYYY/$YYYY/g;
 $URL =~ s/\$\{YYYY\}/$YYYY/g;
 $URL =~ s/\$MM/$MM/g;
@@ -191,6 +216,12 @@ $URL =~ s/\$DD/$DD/g;
 $URL =~ s/\$\{DD\}/$DD/g;
 $URL =~ s/\$HH/$HH/g;
 $URL =~ s/\$\{HH\}/$HH/g;
+
+
+$URL =~ s/\$\{pgrbpath\}/$pgrbpath/g;
+$URL =~ s/\$\{pgrbtype\}/$pgrbtype/g;
+$URL =~ s/\$\{pertubationmember\}/$pertubationmember/g;
+$URL =~ s/\$\{resolution\}/$resolution/g;
 
 $output = '';
 
@@ -213,8 +244,8 @@ while ($fhr <= $hr1) {
    #
 
    if ($windows eq 'yes') {
-      print "$aws s3api get-object --bucket noaa-gefs-pds --no-sign-request --key gefs.$YYYY$MM$DD/$HH/atmos/pgrb2ap5/ge$ENM.t${HH}z.pgrb2a.0p50.f$fhr3$grb$idx $OUTDIR/$file.tmp";
-      $err = system("$aws s3api get-object --bucket noaa-gefs-pds --no-sign-request --key gefs.$YYYY$MM$DD/$HH/atmos/pgrb2ap5/ge$ENM.t${HH}z.pgrb2a.0p50.f$fhr3$grb$idx $OUTDIR/$file.tmp");
+      print "$aws s3api get-object --bucket noaa-gefs-pds --no-sign-request --key gefs.$YYYY$MM$DD/$HH/${pgrbpath}/ge${pertubationmember}.t${HH}z.${pgrbtype}.${resolution}.f$fhr3$grb$idx $OUTDIR/$file.tmp";
+      $err = system("$aws s3api get-object --bucket noaa-gefs-pds --no-sign-request --key gefs.$YYYY$MM$DD/$HH/atmos/${pgrbpath}/ge${pertubationmember}.t${HH}z.${pgrbtype}.${resolution}.f$fhr3$grb$idx $OUTDIR/$file.tmp");
    # $err = system("$curl $insecure -f -s $url$idx -o $OUTDIR/$file.tmp");
       $err = $err >> 8;
       if ($err) {
@@ -300,8 +331,8 @@ while ($fhr <= $hr1) {
    }
 
    if ($range ne '') {
-      print "$aws s3api get-object --bucket noaa-gefs-pds --no-sign-request --range bytes=\"$range\"  --key gefs.$YYYY$MM$DD/$HH/atmos/pgrb2ap5/ge$ENM.t${HH}z.pgrb2a.0p50.f$fhr3$grb $OUTDIR/$file.tmp";
-      $err = system("$aws s3api get-object --bucket noaa-gefs-pds --no-sign-request --range bytes=\"$range\"  --key gefs.$YYYY$MM$DD/$HH/atmos/pgrb2ap5/ge$ENM.t${HH}z.pgrb2a.0p50.f$fhr3$grb $OUTDIR/$file.tmp");
+      print "$aws s3api get-object --bucket noaa-gefs-pds --no-sign-request --range bytes=\"$range\"  --key gefs.$YYYY$MM$DD/$HH/atmos/${pgrbpath}/ge${pertubationmember}.t${HH}z.${pgrbtype}.${resolution}.f$fhr3$grb $OUTDIR/$file.tmp";
+      $err = system("$aws s3api get-object --bucket noaa-gefs-pds --no-sign-request --range bytes=\"$range\"  --key gefs.$YYYY$MM$DD/$HH/atmos/${pgrbpath}/ge${pertubationmember}.t${HH}z.${pgrbtype}.${resolution}.f$fhr3$grb $OUTDIR/$file.tmp");
       #$curl $insecure -f -v -s -r \"$range\" $url$grb -o $OUTDIR/$file.tmp");
       $err = $err >> 8;
       if ($err != 0) {
