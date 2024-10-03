@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-
+# curl download using curl is faster!
 # Define the outer layer array
 outer_array=("2023072718" "2023072800" "2023072806" "2023072812" "2023072818" "2023072900" "2023072906")
 
@@ -12,11 +12,13 @@ for outer in "${outer_array[@]}"; do
   for inner in "${inner_array[@]}"; do
     echo "Processing outer: $outer, inner: $inner"
     mkdir -p ${outer}
-    #perl get_gefs_amazon_curl.pl data ${outer} 0 3 3 all all $outer $inner pgrb2a
-    #perl get_gefs_amazon_curl.pl data ${outer} 0 3 3 all all $outer $inner pgrb2b
-    
-    perl get_gefs_aws_cli.pl data ${outer} 0 3 3 all all $outer $inner pgrb2a
-    perl get_gefs_aws_cli.pl data ${outer} 0 3 3 all all $outer $inner pgrb2b
+    #faster method
+    perl get_gefs_amazon_curl.pl data ${outer} 0 3 3 all all $outer $inner pgrb2a
+    perl get_gefs_amazon_curl.pl data ${outer} 0 3 3 all all $outer $inner pgrb2b
+
+    #slower method
+    #perl get_gefs_aws_cli.pl data ${outer} 0 3 3 all all $outer $inner pgrb2a
+    #perl get_gefs_aws_cli.pl data ${outer} 0 3 3 all all $outer $inner pgrb2b
 
     # Here you can add the commands you want to run for each combination of outer and inner elements
   done
