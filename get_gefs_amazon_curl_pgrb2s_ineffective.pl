@@ -132,6 +132,8 @@ my $string = "c00,p01,p02,p03,p04,p05,p06,p07,p08,p09,p10,p11,p12,p13,p14,p15,p1
 # Split the string by comma
 my @words = split /,/, $string;
 
+
+
 # Loop through each word and print it
 foreach my $word (@words) {
     
@@ -218,6 +220,7 @@ while ($fhr <= $hr1) {
 
    if ($windows eq 'yes') {
       $err = system("$curl $insecure -f -s $url$idx -o $OUTDIR/$file.tmp");
+      $err = system("$curl $insecure -f -v -s -r \"$range\" $url$grb -o $OUTDIR/$file.tmp");
       $err = $err >> 8;
       if ($err) {
          print STDERR "error code=$err,  problem reading $url$idx\n";
